@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Filter } from "lucide-react";
+import { QueryResult } from "@upstash/vector";
 
 import {
   DropdownMenu,
@@ -9,6 +12,9 @@ import {
   DropdownMenuContent,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { Product } from "@/db";
+import { ProductItem } from "@/components/products/product-item";
+import { ProductItemSkeleton } from "@/components/products/product-item-skeleton";
 
 const SORT_OPTIONS = [
   { name: "None", value: "none" },
@@ -19,6 +25,20 @@ const SORT_OPTIONS = [
 export default function Home() {
   const [filter, setFilter] = useState({
     sort: "none",
+  });
+
+  const { data: products, isLoading } = useQuery({
+    queryKey: ["products"],
+    queryFn: async () => {
+      const { data } = await axios.post<QueryResult<Product>[]>(
+        "http://localhost:3000/api/products",
+        {
+          filter: filter.sort,
+        }
+      );
+
+      return data;
+    },
   });
 
   return (
@@ -60,6 +80,24 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      <section className="pb-24 pt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-x-8 gap-y-10">
+          {/* Filters */}
+          <div></div>
+
+          {/* Products Grid */}
+          <ul className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+            {isLoading
+              ? new Array(12)
+                  .fill(null)
+                  .map((_, index) => <ProductItemSkeleton key={index} />)
+              : products?.map((product) => (
+                  <ProductItem key={product.id} product={product.metadata!} />
+                ))}
+          </ul>
+        </div>
+      </section>
     </main>
   );
 }
