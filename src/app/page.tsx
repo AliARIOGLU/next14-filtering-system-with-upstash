@@ -6,15 +6,23 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Filter } from "lucide-react";
 import { QueryResult } from "@upstash/vector";
 
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { Product } from "@/db";
 import { ProductItem } from "@/components/products/product-item";
 import { ProductItemSkeleton } from "@/components/products/product-item-skeleton";
+
+import { ProductState } from "@/lib/validators/product-validator";
 
 const SORT_OPTIONS = [
   { name: "None", value: "none" },
@@ -22,8 +30,32 @@ const SORT_OPTIONS = [
   { name: "Price: High to Low", value: "price-desc" },
 ] as const;
 
+const COLOR_FILTERS = {
+  id: "color",
+  name: "Color",
+  options: [
+    { value: "white", label: "White" },
+    { value: "beige", label: "Beige" },
+    { value: "blue", label: "Blue" },
+    { value: "green", label: "Green" },
+    { value: "purple", label: "Purple" },
+  ] as const,
+};
+
+const SUBCATEGORIES = [
+  { name: "T-Shirts", selected: true, href: "#" },
+  { name: "Hoodies", selected: false, href: "#" },
+  { name: "Sweatshirts", selected: false, href: "#" },
+  { name: "Accessories", selected: false, href: "#" },
+] as const;
+
+const DEFAULT_CUSTOM_PRICE = [0, 100] as [number, number];
+
 export default function Home() {
-  const [filter, setFilter] = useState({
+  const [filter, setFilter] = useState<ProductState>({
+    color: ["beige", "blue", "green", "purple", "white"],
+    price: { isCustom: false, range: DEFAULT_CUSTOM_PRICE },
+    size: ["S", "M", "L"],
     sort: "none",
   });
 
@@ -43,7 +75,7 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div className="flex items-baseline justify-between border-b border-gray-200 pt-24">
+      <div className="flex items-baseline justify-between border-b border-gray-200 pb-6 pt-20">
         <h1 className="text-4xl font-bold tracking-tight text-gray-900">
           High-quality cotton selection
         </h1>
@@ -84,7 +116,48 @@ export default function Home() {
       <section className="pb-24 pt-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-x-8 gap-y-10">
           {/* Filters */}
-          <div></div>
+          <div className="hidden lg:block">
+            <ul className="space-y-4 border-b border-gray-200 pb-6 text-sm font-medium text-gray-900">
+              {SUBCATEGORIES.map((category) => (
+                <li key={category.name}>
+                  <button
+                    disabled={!category.selected}
+                    className="disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {category.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <Accordion type="multiple" className="animate-none">
+              {/* Color filter */}
+              <AccordionItem value="color">
+                <AccordionTrigger className="py-3 text-sm text-gray-400 hover:text-gray-500">
+                  <span className="font-medium text-gray-900">Color</span>
+                </AccordionTrigger>
+                <AccordionContent className="pt-6 animate-none">
+                  <ul className="space-y-4">
+                    {COLOR_FILTERS.options.map((color, idx) => (
+                      <li key={color.value} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id={`color-${idx}`}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <label
+                          htmlFor={`color-${idx}`}
+                          className="ml-3 text-sm text-gray-600"
+                        >
+                          {color.label}
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
 
           {/* Products Grid */}
           <ul className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
