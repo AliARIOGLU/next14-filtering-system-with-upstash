@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Filter } from "lucide-react";
 import { QueryResult } from "@upstash/vector";
+import debounce from "lodash.debounce";
 
 import { cn } from "@/lib/utils";
 import {
@@ -26,6 +27,7 @@ import { ProductItem } from "@/components/products/product-item";
 import { ProductItemSkeleton } from "@/components/products/product-item-skeleton";
 
 import { ProductState } from "@/lib/validators/product-validator";
+import { EmptyState } from "@/components/products/empty-state";
 
 const SORT_OPTIONS = [
   { name: "None", value: "none" },
@@ -83,22 +85,33 @@ export default function Home() {
     sort: "none",
   });
 
-  const { data: products, isLoading } = useQuery({
+  const {
+    data: products,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
       const { data } = await axios.post<QueryResult<Product>[]>(
         "http://localhost:3000/api/products",
         {
-          filter: filter.sort,
-          color: filter.color,
-          size: filter.size,
-          price: filter.price,
+          filter: {
+            sort: filter.sort,
+            color: filter.color,
+            price: filter.price.range,
+            size: filter.size,
+          },
         }
       );
 
       return data;
     },
   });
+
+  const onSubmit = () => refetch();
+
+  const debouncedSubmit = debounce(onSubmit, 400);
+  const _debouncedSubmit = useCallback(debouncedSubmit, []);
 
   const applyArrayFilter = ({
     category,
@@ -119,12 +132,15 @@ export default function Home() {
         [category]: [...prev[category], value],
       }));
     }
-  };
 
-  console.log(filter);
+    _debouncedSubmit();
+  };
 
   const minPrice = Math.min(filter.price.range[0], filter.price.range[1]);
   const maxPrice = Math.max(filter.price.range[0], filter.price.range[1]);
+
+  console.log(filter);
+  console.log("data", products);
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -144,9 +160,11 @@ export default function Home() {
               {SORT_OPTIONS.map((option) => (
                 <button
                   key={option.name}
-                  onClick={() =>
-                    setFilter((prev) => ({ ...prev, sort: option.value }))
-                  }
+                  onClick={() => {
+                    setFilter((prev) => ({ ...prev, sort: option.value }));
+
+                    _debouncedSubmit();
+                  }}
                   className={cn(
                     "text-left text-gray-500 w-full block px-4 py-2 text-sm",
                     {
@@ -277,6 +295,8 @@ export default function Home() {
                                 range: [...price.value],
                               },
                             }));
+
+                            _debouncedSubmit();
                           }}
                         />
                         <label
@@ -303,6 +323,8 @@ export default function Home() {
                                 range: [0, 100],
                               },
                             }));
+
+                            _debouncedSubmit();
                           }}
                         />
                         <label
@@ -344,6 +366,8 @@ export default function Home() {
                             ...prev,
                             price: { isCustom: true, range: [newMin, newMax] },
                           }));
+
+                          _debouncedSubmit();
                         }}
                         className={cn({
                           "opacity-50": !filter.price.isCustom,
@@ -366,6 +390,7 @@ export default function Home() {
               : products?.map((product) => (
                   <ProductItem key={product.id} product={product.metadata!} />
                 ))}
+            {products?.length === 0 && <EmptyState />}
           </ul>
         </div>
       </section>
